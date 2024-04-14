@@ -94,6 +94,7 @@ def buildFileList(path):
 #TODO add the rest of the samples!
 def makeFilelist(paths, maxFiles=-1, base_path=None, nano_prod_tags=None, is_data=False, oneMCfileEveryN=None):
     filelist = []
+    expandedPaths = []
     for orig_path in paths:
         if maxFiles > 0 and len(filelist) >= maxFiles:
             break
@@ -103,10 +104,12 @@ def makeFilelist(paths, maxFiles=-1, base_path=None, nano_prod_tags=None, is_dat
             format_args=dict(BASE_PATH=base_path, NANO_PROD_TAG=prod_tag)
 
             path = orig_path.format(**format_args)
+            expandedPaths.append(path)
             logger.debug(f"Reading files from path {path}")
 
             files = buildFileList(path)
             if maxFiles > 0 and len(files) >= maxFiles:
+                logger.info(f"Booking {len(files)} of {maxFiles} files with tag {prod_tag} with path {path}")
                 break
 
             if len(files) == 0:
@@ -115,6 +118,8 @@ def makeFilelist(paths, maxFiles=-1, base_path=None, nano_prod_tags=None, is_dat
             else:
                 if fallback:
                     logger.warning(f"Falling back to tag {prod_tag} with path {path}")
+                else:
+                    logger.info(f"Booking {len(files)} of {maxFiles} files with tag {prod_tag} with path {path}")
                 break
 
         filelist.extend(files)
@@ -128,8 +133,8 @@ def makeFilelist(paths, maxFiles=-1, base_path=None, nano_prod_tags=None, is_dat
                 tmplist.append(f)
         logger.warning(f"Using {len(tmplist)} files instead of {len(toreturn)}")
         toreturn = tmplist
-    
-    logger.debug(f"Length of list is {len(toreturn)} for paths {paths}")
+
+    logger.debug(f"Length of list is {len(toreturn)} for paths {expandedPaths}")
     return toreturn
 
 def selectProc(selection, datasets):
@@ -196,7 +201,8 @@ def getDataPath(mode=None):
     elif hostname == "cmsanalysis.pi.infn.it":
         # NOTE: If anyone wants to run lowpu analysis at Pisa they'd probably want a different path
         base_path = "/scratchnvme/wmass/NANOV9/postVFP"
-
+    elif hostname == "cmsasymow.pi.infn.it":
+        base_path = "/scratch/wmass/y2016"
     return base_path
 
 def is_zombie(file_path):
@@ -209,8 +215,8 @@ def is_zombie(file_path):
     return False
 
 def getDatasets(maxFiles=default_nfiles, filt=None, excl=None, mode=None, base_path=None, nanoVersion="v9",
-                data_tags=["TrackFitV722_NanoProdv3", "TrackFitV722_NanoProdv2"],
-                mc_tags=["TrackFitV722_NanoProdv3", "TrackFitV718_NanoProdv1"], oneMCfileEveryN=None, checkFileForZombie=False, era="2016PostVFP", extended=True):
+                data_tags=["TrackFitV722_NanoProdv5", "TrackFitV722_NanoProdv3"],
+                mc_tags=["TrackFitV722_NanoProdv5", "TrackFitV722_NanoProdv4", "TrackFitV722_NanoProdv3"], oneMCfileEveryN=None, checkFileForZombie=False, era="2016PostVFP", extended=True):
 
     if maxFiles is None or (isinstance(maxFiles, int) and maxFiles < -1):
         maxFiles=default_nfiles
@@ -251,7 +257,7 @@ def getDatasets(maxFiles=default_nfiles, filt=None, excl=None, mode=None, base_p
         if type(maxFiles) == dict:
             nfiles = maxFiles[sample] if sample in maxFiles else -1
         paths = makeFilelist(info["filepaths"], nfiles, base_path=base_path, nano_prod_tags=prod_tags, is_data=is_data, oneMCfileEveryN=oneMCfileEveryN)
-            
+
         if checkFileForZombie:
             paths = [p for p in paths if not is_zombie(p)]
 
@@ -261,7 +267,6 @@ def getDatasets(maxFiles=default_nfiles, filt=None, excl=None, mode=None, base_p
             logger.warning(f"Failed to find any files for dataset {sample}. Looking at {info['filepaths']}. Skipping!")
             continue
 
-        
         narf_info = dict(
             name=sample,
             filepaths=paths,
@@ -283,7 +288,7 @@ def getDatasets(maxFiles=default_nfiles, filt=None, excl=None, mode=None, base_p
                 )
             )
         narf_datasets.append(narf.Dataset(**narf_info))
-    
+
     narf_datasets = filterProcs(filt, narf_datasets)
     narf_datasets = excludeProcs(excl, narf_datasets)
 
