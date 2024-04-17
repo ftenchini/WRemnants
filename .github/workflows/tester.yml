@@ -13,3 +13,17 @@ on:
 jobs:
   execute-test:
     runs-on: [self-hosted, linux, x64]
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: 'recursive'
+          lfs: 'true'
+
+      - name: setup kerberos
+        run: |
+          kinit -kt ~/private/.keytab cmsmwbot@CERN.CH
+          klist -k -t -e ~/private/.keytab
+          klist
+          echo "xrdfs root://eosuser.cern.ch// ls $EOS_DIR"
+          xrdfs root://eosuser.cern.ch// ls $EOS_DIR
